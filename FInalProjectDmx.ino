@@ -4,11 +4,14 @@
 
 #include <TeensyDMX.h>
 #include <TimerOne.h>
+#include "util.hpp"
 #include <array>
 #include <algorithm>
 
 namespace teensydmx = ::qindesign::teensydmx;
 
+// extern constexpr float int_to_float(uint8_t i);
+// extern constexpr uint8_t float_to_int(float f);
 const byte rgbChannels = 3;
 const byte fixtures = 6;
 const int stateSize = rgbChannels * fixtures;
@@ -16,13 +19,6 @@ volatile byte lightState[stateSize];
 
 const byte INPUT_NOTE_SYMMETRICAL_START = 60;
 const byte INPUT_NOTE_INDIVIDUAL_START = 65;
-
-// https://chatgpt.com/c/673aa2ae-2398-800d-8360-6eaf929c84d3
-// enum NoteRangeType {
-//   SymmetricalLights,
-//   IndividualLights,
-//   NoteRangeTypeSize
-// };
 
 enum BinaryHueSchema {
   Complementary,
@@ -32,44 +28,30 @@ enum BinaryHueSchema {
   TriadicRight,
   SplitComplementaryLeft,
   SplitComplementaryRight
-}
+};
 
 enum TernaryHueSchema {
   Analogous,
   Triadic,
   SplitComplementary
-}
+};
 
 // options
 byte frameRate = 60;
 // int inputNoteRanges[NoteRangeTypeSize] = [60, 66]; // C3, F3
 
 // fixture state
-byte hues[fixtures];
+byte maxRgb[stateSize];
 float brightness[fixtures];
-int attack[fixtures];
-int release[fixtures];
-int fadeInFramesLeft[stateSize]; // specific to the "currently playing note", written as frame amount
-int fadeOutFramesLeft[stateSize]; // specific to the "currently playing note", written as frame amount
-byte currentMax[stateSize]; // specific to the "currently playing note", written as RGB value
+int attack[fixtures]; // written as frame amount
+int release[fixtures]; // written as frame amount
+int fadeInFramesLeft[fixtures]; // specific to the "currently playing note"
+int fadeOutFramesLeft[fixtures]; // specific to the "currently playing note"
+int delta[stateSize]; // specific to the "currently playing note"
 
 // Pin for enabling or disabling the transmitter.
 // This may not be needed for your hardware.
 constexpr byte kTXPin = 17;
-
-
-// constexpr std::optional<int> findNoteIndex(int target) {
-//     // https://claude.ai/chat/e4c684e0-876e-48b3-bdb9-cd2b1b125fbd
-//     // constexpr int size = sizeof(inputNotes) / sizeof(inputNotes[0]);
-
-//     for (int i = 0; i < inputNotes.length; i++) {
-//       if (inputNotes[i] == target) {
-//         return i;
-//       }
-//     }
-
-//     return std::nullopt;
-// }
 
 // Create the DMX sender on Serial1.
 teensydmx::Sender dmxTx{Serial1};
@@ -84,8 +66,9 @@ void setup() {
   std::fill(brightness, brightness + fixtures, 1.0);
   std::fill(attack, attack + fixtures, 0);
   std::fill(release, release + fixtures, 15);
-  std::fill(currentFadeInRate, currentFadeInRate + stateSize, 0);
-  std::fill(currentFadeOutRate, currentFadeOutRate + stateSize, 0);
+  std::fill(fadeInFramesLeft, fadeInFramesLeft + fixtures, 0);
+  std::fill(fadeOutFramesLeft, fadeOutFramesLeft + fixtures, 0);
+  std::fill(delta, delta + stateSize, 0);
 
   Serial.begin(250000);
   usbMIDI.setHandleControlChange(OnControlChange);
@@ -104,13 +87,13 @@ void setup() {
   // There's no special function to call for each iteration of loop().
 
   // Set channel 1 to 128
-  dmxTx.set(1, 128);
-  dmxTx.set(2, 0);
-  dmxTx.set(7, 255);
-  dmxTx.set(1 + CHANNELS_PER_FIXTURE, 128);
-  dmxTx.set(2 + CHANNELS_PER_FIXTURE, 0);
-  dmxTx.set(3 + CHANNELS_PER_FIXTURE, 128);
-  dmxTx.set(7 + CHANNELS_PER_FIXTURE, 255);
+  // dmxTx.set(1, 128);
+  // dmxTx.set(2, 0);
+  // dmxTx.set(7, 255);
+  // dmxTx.set(1 + CHANNELS_PER_FIXTURE, 128);
+  // dmxTx.set(2 + CHANNELS_PER_FIXTURE, 0);
+  // dmxTx.set(3 + CHANNELS_PER_FIXTURE, 128);
+  // dmxTx.set(7 + CHANNELS_PER_FIXTURE, 255);
 
   // Set channels 10-12 to the 3 values in 'data'
   // dmxTx.set(10, data, 3);
@@ -155,39 +138,72 @@ void OnNoteOn(byte channel, byte note, byte velocity) {
 }
 
 void symmetricalLight(byte note, byte velocity) {
-  byte leftFixture;
-  if (note == 60) {
+  byte leftFixture = 0;
+  if (note == 60 || note == 61) {
     leftFixture = 0;
   }
-  if (note == 62) {
+  else if (note == 62 || note == 63) {
     leftFixture = 1;
   }
-  if (note == 64) {
+  else if (note == 64) {
     leftFixture = 2;
   }
   byte rightFixture = 5 - leftFixture;
 
-  lightState[leftFixture * rgbChannels]
+  // set max values
+  byte currentMaxLeft[] = {
+    byte(maxRgb[leftFixture * rgbChannels] * int_to_float(velocity * 2)),
+    byte(maxRgb[leftFixture * rgbChannels + 1] * int_to_float(velocity * 2)),
+    byte(maxRgb[leftFixture * rgbChannels + 2] * int_to_float(velocity * 2))
+  };
+  // set value to increment with each frame
+  delta[leftFixture * rgbChannels] = currentMaxLeft[0] / attack[leftFixture];
+  delta[leftFixture * rgbChannels + 1] = currentMaxLeft[1] / attack[leftFixture];
+  delta[leftFixture * rgbChannels + 2] = currentMaxLeft[2] / attack[leftFixture];
+
+  // set amount of frames left until max value
+  fadeInFramesLeft[leftFixture] = attack[leftFixture];
+
+  // set amount of frames from max value to 0
+  fadeOutFramesLeft[leftFixture] = release[leftFixture];
+
+  byte currentMaxRight[] = {
+    byte(maxRgb[rightFixture * rgbChannels] * int_to_float(velocity * 2)),
+    byte(maxRgb[rightFixture * rgbChannels + 1] * int_to_float(velocity * 2)),
+    byte(maxRgb[rightFixture * rgbChannels + 2] * int_to_float(velocity * 2))
+  };
+  delta[rightFixture * rgbChannels] = currentMaxRight[0] / attack[rightFixture];
+  delta[rightFixture * rgbChannels + 1] = currentMaxRight[1] / attack[rightFixture];
+  delta[rightFixture * rgbChannels + 2] = currentMaxRight[2] / attack[rightFixture];
+  fadeInFramesLeft[rightFixture] = attack[rightFixture];
+  fadeOutFramesLeft[rightFixture] = release[rightFixture];
 }
 
-void individualLight(byte note) {
+void individualLight(byte note, byte velocity) {
+  byte fixture = note - 65;
 
+  byte currentMax[] = {
+    byte(maxRgb[fixture * rgbChannels] * int_to_float(velocity * 2)),
+    byte(maxRgb[fixture * rgbChannels + 1] * int_to_float(velocity * 2)),
+    byte(maxRgb[fixture * rgbChannels + 2] * int_to_float(velocity * 2))
+  };
+  delta[fixture * rgbChannels] = currentMax[0] / attack[fixture * rgbChannels];
+  delta[fixture * rgbChannels + 1] = currentMax[1] / attack[fixture * rgbChannels + 1];
+  delta[fixture * rgbChannels + 2] = currentMax[2] / attack[fixture * rgbChannels + 2];
+  fadeInFramesLeft[fixture] = attack[fixture];
+  fadeOutFramesLeft[fixture] = release[fixture];
 }
 
-int adsr() {
-
-}
-
-void frame()
+void frame() {
   int currentFixture = 0;
   int rgbCounter = 0;
   // https://learn.microsoft.com/en-us/cpp/cpp/range-based-for-statement-cpp?view=msvc-170
   for (int i = 0; i < stateSize; i++) {
-    if (fadeInFramesLeft[i] != 0) {
-      lightState[i]++;
+    if (fadeInFramesLeft[i / rgbChannels] != 0) {
+      lightState[i] += delta[i];
       fadeInFramesLeft[i]--;
-    } else if (fadeOutFramesLeft[i] != 0) {
-      lightState[i]--;
+    } else if (fadeOutFramesLeft[i / rgbChannels] != 0) {
+      lightState[i] += delta[i];
       fadeOutFramesLeft[i]--;
     }
 
@@ -207,7 +223,7 @@ void updateDmx() {
 
   // https://learn.microsoft.com/en-us/cpp/cpp/range-based-for-statement-cpp?view=msvc-170
   for (const auto &rgbChannel : lightState) {
-    dmxTx.set(currentFixture * CHANNELS_PER_FIXTURE + dmxCounter, rbgChannel)
+    dmxTx.set(currentFixture * CHANNELS_PER_FIXTURE + dmxCounter, rgbChannel);
 
     dmxCounter++;
     if (dmxCounter % CHANNELS_PER_FIXTURE == 0) {

@@ -1,0 +1,8 @@
+{
+  "files.associations": {
+    "*.ejs": "html",
+    "*.json5": "json5",
+    "*.el": "clojure",
+    "cstddef": "cpp"
+  }
+}
