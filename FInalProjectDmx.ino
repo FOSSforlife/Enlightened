@@ -12,13 +12,15 @@ namespace teensydmx = ::qindesign::teensydmx;
 
 // extern constexpr float int_to_float(uint8_t i);
 // extern constexpr uint8_t float_to_int(float f);
+void printAlignedArray(int arr[], size_t size);
 const byte rgbChannels = 3;
 const byte fixtures = 6;
 const int stateSize = rgbChannels * fixtures;
-volatile byte lightState[stateSize];
+byte lightState[stateSize];
 
 const byte INPUT_NOTE_SYMMETRICAL_START = 60;
 const byte INPUT_NOTE_INDIVIDUAL_START = 65;
+const bool DEBUG_DMX = true;
 
 enum BinaryHueSchema {
   Complementary,
@@ -64,7 +66,7 @@ const byte CHANNELS_PER_FIXTURE = 7;
 void setup() {
   // https://stackoverflow.com/questions/14446850/filling-up-an-array-in-c
   std::fill(brightness, brightness + fixtures, 1.0);
-  std::fill(attack, attack + fixtures, 0);
+  std::fill(attack, attack + fixtures, 1);
   std::fill(release, release + fixtures, 15);
   std::fill(fadeInFramesLeft, fadeInFramesLeft + fixtures, 0);
   std::fill(fadeOutFramesLeft, fadeOutFramesLeft + fixtures, 0);
@@ -89,11 +91,11 @@ void setup() {
   // Set channel 1 to 128
   // dmxTx.set(1, 128);
   // dmxTx.set(2, 0);
-  // dmxTx.set(7, 255);
+  dmxTx.set(7, 255);
   // dmxTx.set(1 + CHANNELS_PER_FIXTURE, 128);
   // dmxTx.set(2 + CHANNELS_PER_FIXTURE, 0);
   // dmxTx.set(3 + CHANNELS_PER_FIXTURE, 128);
-  // dmxTx.set(7 + CHANNELS_PER_FIXTURE, 255);
+  dmxTx.set(7 + CHANNELS_PER_FIXTURE, 255);
 
   // Set channels 10-12 to the 3 values in 'data'
   // dmxTx.set(10, data, 3);
@@ -104,29 +106,36 @@ void setup() {
   // If it doesn't matter, begin() can be called before setting the
   // channel contents.
   dmxTx.begin();
+  setFixtureColors(0);
 
   Timer1.initialize(1000000 / frameRate); // 60 Hz
   Timer1.attachInterrupt(frame);
   Serial.println("Starting program...");
+  Serial.printf("Frame rate: %u\n", frameRate);
+}
+
+void setFixtureColors(byte hue) {
+  for (int i = 0; i < stateSize; i += 3) {
+    // for now, set all to the same color
+    // hueToRgbFn(hue, maxRgb[i], maxRgb[i + 1], maxRgb[i + 2]);
+    hsvToRgbFn(hue, 255, 50, maxRgb[i], maxRgb[i + 1], maxRgb[i + 2]);
+  }
 }
 
 void OnControlChange(byte channel, byte control, byte value) {
   Serial.println("got a midi cc");
-    // int dmxChannel = (channel -1)*128 + control;
-    // led_channel(dmxChannel, value*2);
-//  Serial.println("got midi");
-//  Serial.println(channel);
- Serial.println(control);
- Serial.println(value);
+  Serial.println(control);
+  Serial.println(value);
 
- dmxTx.set(control, value * 2);
+  // dmxTx.set(control, value * 2);
+  // setFixtureColors(value * 2);
 }
 
 void OnNoteOn(byte channel, byte note, byte velocity) {
   Serial.println("got a midi note");
   // Serial.println(channel);
   Serial.println(note);
-  Serial.println(velocity);
+  // Serial.println(velocity);
 
   if (note >= INPUT_NOTE_SYMMETRICAL_START && note <= INPUT_NOTE_SYMMETRICAL_START + 4) { // C3 through E3
     symmetricalLight(note, velocity);
@@ -152,9 +161,9 @@ void symmetricalLight(byte note, byte velocity) {
 
   // set max values
   byte currentMaxLeft[] = {
-    byte(maxRgb[leftFixture * rgbChannels] * int_to_float(velocity * 2)),
-    byte(maxRgb[leftFixture * rgbChannels + 1] * int_to_float(velocity * 2)),
-    byte(maxRgb[leftFixture * rgbChannels + 2] * int_to_float(velocity * 2))
+    byte(maxRgb[leftFixture * rgbChannels] * normalize(velocity * 2)),
+    byte(maxRgb[leftFixture * rgbChannels + 1] * normalize(velocity * 2)),
+    byte(maxRgb[leftFixture * rgbChannels + 2] * normalize(velocity * 2))
   };
   // set value to increment with each frame
   delta[leftFixture * rgbChannels] = currentMaxLeft[0] / attack[leftFixture];
@@ -168,9 +177,9 @@ void symmetricalLight(byte note, byte velocity) {
   fadeOutFramesLeft[leftFixture] = release[leftFixture];
 
   byte currentMaxRight[] = {
-    byte(maxRgb[rightFixture * rgbChannels] * int_to_float(velocity * 2)),
-    byte(maxRgb[rightFixture * rgbChannels + 1] * int_to_float(velocity * 2)),
-    byte(maxRgb[rightFixture * rgbChannels + 2] * int_to_float(velocity * 2))
+    byte(maxRgb[rightFixture * rgbChannels] * normalize(velocity * 2)),
+    byte(maxRgb[rightFixture * rgbChannels + 1] * normalize(velocity * 2)),
+    byte(maxRgb[rightFixture * rgbChannels + 2] * normalize(velocity * 2))
   };
   delta[rightFixture * rgbChannels] = currentMaxRight[0] / attack[rightFixture];
   delta[rightFixture * rgbChannels + 1] = currentMaxRight[1] / attack[rightFixture];
@@ -183,9 +192,9 @@ void individualLight(byte note, byte velocity) {
   byte fixture = note - 65;
 
   byte currentMax[] = {
-    byte(maxRgb[fixture * rgbChannels] * int_to_float(velocity * 2)),
-    byte(maxRgb[fixture * rgbChannels + 1] * int_to_float(velocity * 2)),
-    byte(maxRgb[fixture * rgbChannels + 2] * int_to_float(velocity * 2))
+    byte(maxRgb[fixture * rgbChannels] * normalize(velocity * 2)),
+    byte(maxRgb[fixture * rgbChannels + 1] * normalize(velocity * 2)),
+    byte(maxRgb[fixture * rgbChannels + 2] * normalize(velocity * 2))
   };
   delta[fixture * rgbChannels] = currentMax[0] / attack[fixture * rgbChannels];
   delta[fixture * rgbChannels + 1] = currentMax[1] / attack[fixture * rgbChannels + 1];
@@ -195,16 +204,19 @@ void individualLight(byte note, byte velocity) {
 }
 
 void frame() {
+  // Serial.println("frame");
+
   int currentFixture = 0;
   int rgbCounter = 0;
-  // https://learn.microsoft.com/en-us/cpp/cpp/range-based-for-statement-cpp?view=msvc-170
   for (int i = 0; i < stateSize; i++) {
+    
     if (fadeInFramesLeft[i / rgbChannels] != 0) {
       lightState[i] += delta[i];
-      fadeInFramesLeft[i]--;
+      fadeInFramesLeft[i / rgbChannels]--;
     } else if (fadeOutFramesLeft[i / rgbChannels] != 0) {
+      // TODO: change delta[i] from attack to release
       lightState[i] += delta[i];
-      fadeOutFramesLeft[i]--;
+      fadeOutFramesLeft[i / rgbChannels]--;
     }
 
     rgbCounter++;
@@ -216,21 +228,43 @@ void frame() {
   updateDmx();
 }
 
-// TEST: exports lightState to DMX
 void updateDmx() {
-  int currentFixture = 0;
-  int dmxCounter = 0;
-
-  // https://learn.microsoft.com/en-us/cpp/cpp/range-based-for-statement-cpp?view=msvc-170
-  for (const auto &rgbChannel : lightState) {
-    dmxTx.set(currentFixture * CHANNELS_PER_FIXTURE + dmxCounter, rgbChannel);
-
-    dmxCounter++;
-    if (dmxCounter % CHANNELS_PER_FIXTURE == 0) {
-      currentFixture++;
-    }
+  if (DEBUG_DMX) {
+    Serial.print("Sending DMX values: ");
+    printAlignedArray(lightState, sizeof(lightState) / sizeof(lightState[0]));
+    // printAlignedArray(maxRgb, sizeof(maxRgb) / sizeof(maxRgb[0]));
   }
+
+  for (int i = 0; i < fixtures; i++) {
+    byte data[3]{lightState[i * rgbChannels], lightState[i * rgbChannels + 1], lightState[i * rgbChannels + 2]};
+    dmxTx.set(1 + (i * CHANNELS_PER_FIXTURE), data, 3);
+
+    // other implementations:
+
+    // dmxTx.set(i * CHANNELS_PER_FIXTURE, [lightState[i * rgbChannels], lightState[i * rgbChannels + 1], lightState[i * rgbChannels + 2]]);
+
+    // dmxTx.set(i * CHANNELS_PER_FIXTURE, lightState[i * rgbChannels]);
+    // dmxTx.set(i * CHANNELS_PER_FIXTURE + 1, lightState[i * rgbChannels + 1]);
+    // dmxTx.set(i * CHANNELS_PER_FIXTURE + 2, lightState[i * rgbChannels + 2]);
+
+    // int currentFixture = i / rgbChannels;
+    // dmxTx.set(currentFixture * CHANNELS_PER_FIXTURE, lightState[i]);
+    // dmxTx.set(currentFixture * CHANNELS_PER_FIXTURE + 1, lightState[i + 1]);
+    // dmxTx.set(currentFixture * CHANNELS_PER_FIXTURE + 2, lightState[i + 2]);
+  }
+
+  // for (const auto &rgbValue : lightState) {
+  //   // 0 0, 0 1, 0 2, 0 3 -> 1 0
+  //   // dmxTx.set(currentFixture * CHANNELS_PER_FIXTURE + rgbCounter, rgbValue);
+
+  //   rgbCounter++;
+  //   if (rgbCounter == 3) {
+  //     currentFixture++;
+  //     rgbCounter = 0;
+  //   }
+  // }
 }
+
 
 void loop() {
   // Do something, maybe alter channel values.
