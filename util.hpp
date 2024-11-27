@@ -50,7 +50,7 @@ enum Arrangement {
 // };
 
 // https://chatgpt.com/c/673aaa18-fab4-800d-85c3-c2da8d54a95b
-void hueToRgbFn(int8_t hue, uint8_t& rByte, uint8_t& gByte, uint8_t& bByte) {
+void hueToRgbFn(uint8_t hue, uint8_t& rByte, uint8_t& gByte, uint8_t& bByte) {
     constexpr float depthPerSection = 256 / 6;
     float h = hue / depthPerSection;
     float r, g, b;
@@ -74,7 +74,7 @@ void hueToRgbFn(int8_t hue, uint8_t& rByte, uint8_t& gByte, uint8_t& bByte) {
     bByte = denormalize(b);
 }
 
-void hsvToRgbFn(int8_t hue, int8_t sat, int8_t val, uint8_t& rByte, uint8_t& gByte, uint8_t& bByte) {
+void hsvToRgbFn(uint8_t hue, uint8_t sat, uint8_t val, uint8_t& rByte, uint8_t& gByte, uint8_t& bByte) {
     constexpr float depthPerSection = 256 / 6;
     float h = hue / depthPerSection;
     float s = normalize(sat);

@@ -18,6 +18,7 @@ const byte fixtures = 6;
 const int stateSize = rgbChannels * fixtures;
 byte lightState[stateSize];
 
+const byte INPUT_NOTE_COLOR_START = 53;
 const byte INPUT_NOTE_SYMMETRICAL_START = 60;
 const byte INPUT_NOTE_INDIVIDUAL_START = 65;
 const bool DEBUG_DMX = true;
@@ -49,7 +50,8 @@ int attack[fixtures]; // written as frame amount
 int release[fixtures]; // written as frame amount
 int fadeInFramesLeft[fixtures]; // specific to the "currently playing note"
 int fadeOutFramesLeft[fixtures]; // specific to the "currently playing note"
-int delta[stateSize]; // specific to the "currently playing note"
+int attackDelta[stateSize]; // specific to the "currently playing note"
+int releaseDelta[stateSize]; // specific to the "currently playing note"
 
 // Pin for enabling or disabling the transmitter.
 // This may not be needed for your hardware.
@@ -66,11 +68,12 @@ const byte CHANNELS_PER_FIXTURE = 7;
 void setup() {
   // https://stackoverflow.com/questions/14446850/filling-up-an-array-in-c
   std::fill(brightness, brightness + fixtures, 1.0);
-  std::fill(attack, attack + fixtures, 1);
+  std::fill(attack, attack + fixtures, 15);
   std::fill(release, release + fixtures, 15);
   std::fill(fadeInFramesLeft, fadeInFramesLeft + fixtures, 0);
   std::fill(fadeOutFramesLeft, fadeOutFramesLeft + fixtures, 0);
-  std::fill(delta, delta + stateSize, 0);
+  std::fill(attackDelta, attackDelta + stateSize, 0);
+  std::fill(releaseDelta, releaseDelta + stateSize, 0);
 
   Serial.begin(250000);
   usbMIDI.setHandleControlChange(OnControlChange);
@@ -84,17 +87,7 @@ void setup() {
   pinMode(kTXPin, OUTPUT);
   digitalWriteFast(kTXPin, HIGH);
 
-  // Set some channel values. These are being set in setup() to
-  // illustrate that values are 'sticky'. They stay set until changed.
-  // There's no special function to call for each iteration of loop().
-
-  // Set channel 1 to 128
-  // dmxTx.set(1, 128);
-  // dmxTx.set(2, 0);
   dmxTx.set(7, 255);
-  // dmxTx.set(1 + CHANNELS_PER_FIXTURE, 128);
-  // dmxTx.set(2 + CHANNELS_PER_FIXTURE, 0);
-  // dmxTx.set(3 + CHANNELS_PER_FIXTURE, 128);
   dmxTx.set(7 + CHANNELS_PER_FIXTURE, 255);
 
   // Set channels 10-12 to the 3 values in 'data'
@@ -115,10 +108,10 @@ void setup() {
 }
 
 void setFixtureColors(byte hue) {
+  // for now, set all to the same color
   for (int i = 0; i < stateSize; i += 3) {
-    // for now, set all to the same color
     // hueToRgbFn(hue, maxRgb[i], maxRgb[i + 1], maxRgb[i + 2]);
-    hsvToRgbFn(hue, 255, 50, maxRgb[i], maxRgb[i + 1], maxRgb[i + 2]);
+    hsvToRgbFn(hue, 255, 255, maxRgb[i], maxRgb[i + 1], maxRgb[i + 2]);
   }
 }
 
@@ -136,6 +129,19 @@ void OnNoteOn(byte channel, byte note, byte velocity) {
   // Serial.println(channel);
   Serial.println(note);
   // Serial.println(velocity);
+
+  if (note == INPUT_NOTE_COLOR_START) { // F2
+    setFixtureColors(0);
+  }
+  if (note == INPUT_NOTE_COLOR_START + 2) { // G2
+    setFixtureColors(60);
+  }
+  if (note == INPUT_NOTE_COLOR_START + 4) { // A2
+    setFixtureColors(120);
+  }
+  if (note == INPUT_NOTE_COLOR_START + 6) { // B2
+    setFixtureColors(240);
+  }
 
   if (note >= INPUT_NOTE_SYMMETRICAL_START && note <= INPUT_NOTE_SYMMETRICAL_START + 4) { // C3 through E3
     symmetricalLight(note, velocity);
@@ -157,7 +163,7 @@ void symmetricalLight(byte note, byte velocity) {
   else if (note == 64) {
     leftFixture = 2;
   }
-  byte rightFixture = 5 - leftFixture;
+  byte rightFixture = fixtures - 1 - leftFixture;
 
   // set max values
   byte currentMaxLeft[] = {
@@ -166,9 +172,14 @@ void symmetricalLight(byte note, byte velocity) {
     byte(maxRgb[leftFixture * rgbChannels + 2] * normalize(velocity * 2))
   };
   // set value to increment with each frame
-  delta[leftFixture * rgbChannels] = currentMaxLeft[0] / attack[leftFixture];
-  delta[leftFixture * rgbChannels + 1] = currentMaxLeft[1] / attack[leftFixture];
-  delta[leftFixture * rgbChannels + 2] = currentMaxLeft[2] / attack[leftFixture];
+  attackDelta[leftFixture * rgbChannels] = currentMaxLeft[0] / attack[leftFixture];
+  attackDelta[leftFixture * rgbChannels + 1] = currentMaxLeft[1] / attack[leftFixture];
+  attackDelta[leftFixture * rgbChannels + 2] = currentMaxLeft[2] / attack[leftFixture];
+
+  // set value to decrement with each frame
+  releaseDelta[leftFixture * rgbChannels] = currentMaxLeft[0] / release[leftFixture];
+  releaseDelta[leftFixture * rgbChannels + 1] = currentMaxLeft[1] / release[leftFixture];
+  releaseDelta[leftFixture * rgbChannels + 2] = currentMaxLeft[2] / release[leftFixture];
 
   // set amount of frames left until max value
   fadeInFramesLeft[leftFixture] = attack[leftFixture];
@@ -181,9 +192,12 @@ void symmetricalLight(byte note, byte velocity) {
     byte(maxRgb[rightFixture * rgbChannels + 1] * normalize(velocity * 2)),
     byte(maxRgb[rightFixture * rgbChannels + 2] * normalize(velocity * 2))
   };
-  delta[rightFixture * rgbChannels] = currentMaxRight[0] / attack[rightFixture];
-  delta[rightFixture * rgbChannels + 1] = currentMaxRight[1] / attack[rightFixture];
-  delta[rightFixture * rgbChannels + 2] = currentMaxRight[2] / attack[rightFixture];
+  attackDelta[rightFixture * rgbChannels] = currentMaxRight[0] / attack[rightFixture];
+  attackDelta[rightFixture * rgbChannels + 1] = currentMaxRight[1] / attack[rightFixture];
+  attackDelta[rightFixture * rgbChannels + 2] = currentMaxRight[2] / attack[rightFixture];
+  releaseDelta[rightFixture * rgbChannels] = currentMaxRight[0] / release[rightFixture];
+  releaseDelta[rightFixture * rgbChannels + 1] = currentMaxRight[1] / release[rightFixture];
+  releaseDelta[rightFixture * rgbChannels + 2] = currentMaxRight[2] / release[rightFixture];
   fadeInFramesLeft[rightFixture] = attack[rightFixture];
   fadeOutFramesLeft[rightFixture] = release[rightFixture];
 }
@@ -196,26 +210,25 @@ void individualLight(byte note, byte velocity) {
     byte(maxRgb[fixture * rgbChannels + 1] * normalize(velocity * 2)),
     byte(maxRgb[fixture * rgbChannels + 2] * normalize(velocity * 2))
   };
-  delta[fixture * rgbChannels] = currentMax[0] / attack[fixture * rgbChannels];
-  delta[fixture * rgbChannels + 1] = currentMax[1] / attack[fixture * rgbChannels + 1];
-  delta[fixture * rgbChannels + 2] = currentMax[2] / attack[fixture * rgbChannels + 2];
+  attackDelta[fixture * rgbChannels] = currentMax[0] / attack[fixture * rgbChannels];
+  attackDelta[fixture * rgbChannels + 1] = currentMax[1] / attack[fixture * rgbChannels + 1];
+  attackDelta[fixture * rgbChannels + 2] = currentMax[2] / attack[fixture * rgbChannels + 2];
+  releaseDelta[fixture * rgbChannels] = currentMax[0] / release[fixture * rgbChannels];
+  releaseDelta[fixture * rgbChannels + 1] = currentMax[1] / release[fixture * rgbChannels + 1];
+  releaseDelta[fixture * rgbChannels + 2] = currentMax[2] / release[fixture * rgbChannels + 2];
   fadeInFramesLeft[fixture] = attack[fixture];
   fadeOutFramesLeft[fixture] = release[fixture];
 }
 
 void frame() {
-  // Serial.println("frame");
-
   int currentFixture = 0;
   int rgbCounter = 0;
   for (int i = 0; i < stateSize; i++) {
-    
     if (fadeInFramesLeft[i / rgbChannels] != 0) {
-      lightState[i] += delta[i];
+      lightState[i] += attackDelta[i];
       fadeInFramesLeft[i / rgbChannels]--;
     } else if (fadeOutFramesLeft[i / rgbChannels] != 0) {
-      // TODO: change delta[i] from attack to release
-      lightState[i] += delta[i];
+      lightState[i] -= releaseDelta[i];
       fadeOutFramesLeft[i / rgbChannels]--;
     }
 
