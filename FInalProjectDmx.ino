@@ -18,7 +18,8 @@ const byte fixtures = 6;
 const int stateSize = rgbChannels * fixtures;
 byte lightState[stateSize];
 
-const byte INPUT_NOTE_COLOR_START = 53;
+const byte INPUT_NOTE_FIXTURE_HUES_START = 36;
+const byte INPUT_NOTE_COLOR_SCHEME_START = 48;
 const byte INPUT_NOTE_SYMMETRICAL_START = 60;
 const byte INPUT_NOTE_INDIVIDUAL_START = 65;
 const bool DEBUG_DMX = true;
