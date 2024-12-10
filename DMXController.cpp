@@ -100,6 +100,7 @@ DMXController::DMXController(HardwareSerial& serial, uint8_t txPin)
 
 void DMXController::addFixture(uint8_t startAddress, uint8_t channelsPerFixture) {
     fixtures_.emplace_back(startAddress, channelsPerFixture);
+    dmxTx_.set(startAddress + 6, 255);
 }
 
 void DMXController::setSymmetricalNoteHit(size_t leftIndex) {
