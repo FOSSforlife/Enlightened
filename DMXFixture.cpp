@@ -26,7 +26,7 @@ void DMXFixture::noteHit() {
     releaseDelta_.b = targetColor_.b / releaseFrames_;
 
     fadeInFramesLeft_ = attackFrames_;
-    fadeOutFramesLeft_ = releaseFrames_;
+    fadeOutFramesLeft_ = releaseFrames_ + 1; // add 1 to account for integer division (gives the release more time to go to 0)
 }
 
 void DMXFixture::noteHit(const RGB& color) {
@@ -43,7 +43,7 @@ void DMXFixture::noteHit(const RGB& color) {
     releaseDelta_.b = targetColor_.b / releaseFrames_;
 
     fadeInFramesLeft_ = attackFrames_;
-    fadeOutFramesLeft_ = releaseFrames_;
+    fadeOutFramesLeft_ = releaseFrames_ + 1;
 }
 
 void DMXFixture::setBrightness(float brightness) {
