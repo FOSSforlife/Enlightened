@@ -14,6 +14,10 @@ DMXFixture::DMXFixture(uint8_t startAddress, uint8_t channelsPerFixture)
     , attackDelta_({0, 0, 0})
     , releaseDelta_({0, 0, 0}) {}
 
+void DMXFixture::reset() {
+  currentColor_ = {0, 0, 0};
+}
+
 void DMXFixture::noteHit() {
     // Calculate attack deltas
     attackDelta_.r = targetColor_.r / attackFrames_;

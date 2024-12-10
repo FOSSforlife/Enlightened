@@ -11,6 +11,7 @@ class DMXFixture {
 public:
     DMXFixture(uint8_t startAddress, uint8_t channelsPerFixture = 7);
 
+    void reset();
     void noteHit(const RGB& color);
     void noteHit();
     void setColor(const RGB& color);
