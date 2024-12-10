@@ -10,6 +10,7 @@ public:
 
 private:
     DMXController& controller_;
+    static constexpr uint8_t NOTE_RESET = 48;
     static constexpr uint8_t NOTE_COLOR_START = 52;
     static constexpr uint8_t NOTE_SYMMETRICAL_START = 60;
     static constexpr uint8_t NOTE_INDIVIDUAL_START = 65;

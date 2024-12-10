@@ -29,10 +29,16 @@ MIDIHandler::MIDIHandler(DMXController& controller)
     : controller_(controller) {}
 
 void MIDIHandler::handleNoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
-    if (note >= NOTE_COLOR_START && note <= NOTE_SYMMETRICAL_START) {
+    if (note == NOTE_RESET) {
+        for (auto& fixture : controller_.fixtures_) {
+            fixture.noteHit({0, 0, 0});
+        }
+    }
+    else if (note >= NOTE_COLOR_START && note <= NOTE_SYMMETRICAL_START) {
         switch(note) {
             case NOTE_COLOR_START: // E2
                 controller_.setColorScheme(hueToColor2(velocity * 2), Static);
+
                 break;
             case NOTE_COLOR_START + 1: // F2
                 controller_.setColorScheme(hueToColor2(velocity * 2), Complementary);
