@@ -1,36 +1,73 @@
 #include "MIDIHandler.hpp"
+
+RGB hueToColor2(uint8_t hue) {
+    // Convert note to color using HSV->RGB conversion
+
+    // Simple HSV to RGB conversion for full saturation and value
+    uint8_t region = hue / 43;
+    uint8_t remainder = (hue - (region * 43)) * 6;
+
+    uint8_t p = 0;
+    uint8_t q = 0;
+    uint8_t t = 0;
+
+    switch (region) {
+        case 0: return {255, remainder, p};
+        case 1: return {255 - remainder, 255, p};
+        case 2: return {p, 255, remainder};
+        case 3: return {p, 255 - remainder, 255};
+        case 4: return {remainder, p, 255};
+        case 5: default: return {255, p, 255 - remainder};
+    }
+}
+
+RGB velocityToColor(uint8_t velocity) {
+    return hueToColor2((velocity * 2) % 256);
+}
+
 MIDIHandler::MIDIHandler(DMXController& controller)
     : controller_(controller) {}
 
 void MIDIHandler::handleNoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
-    if (note >= INPUT_NOTE_FIXTURE_HUES_START && note <= INPUT_NOTE_COLOR_SCHEME_START) {
-
-    }
-    if (note >= INPUT_NOTE_COLOR_SCHEME_START && note <= INPUT_NOTE_SYMMETRICAL_START) {
-        // Color selection notes
-        // TODO: Color schemes
-        controller_.setAllColors(noteToColor(note));
+    if (note >= NOTE_COLOR_START && note <= NOTE_SYMMETRICAL_START) {
+        switch(note) {
+            case NOTE_COLOR_START + 4: // E2
+                controller_.setColorScheme(hueToColor2(velocity * 2), Static);
+                break;
+            case NOTE_COLOR_START + 5: // F2
+                controller_.setColorScheme(hueToColor2(velocity * 2), Complementary);
+                break;
+            case NOTE_COLOR_START + 7: // G2
+                controller_.setColorScheme(hueToColor2(velocity * 2), Analogous);
+                break;
+            case NOTE_COLOR_START + 9: // A2
+                controller_.setColorScheme(hueToColor2(velocity * 2), Triadic);
+                break;
+            case NOTE_COLOR_START + 11: // B2
+                controller_.setColorScheme(hueToColor2(velocity * 2), SplitComplementary);
+                break;
+        }
     }
     else if (note >= NOTE_SYMMETRICAL_START && note <= NOTE_SYMMETRICAL_START + 4) {
         // Symmetrical control notes
         uint8_t leftFixture = (note - NOTE_SYMMETRICAL_START) / 2;
         if (velocity == 127) {
-            controller_.setSymmetricalColor(leftFixture);
+            controller_.setSymmetricalNoteHit(leftFixture);
         }
         else {
             RGB color = velocityToColor(velocity);
-            controller_.setSymmetricalColor(leftFixture, color);
+            controller_.setSymmetricalNoteHit(leftFixture, color);
         }
     }
     else if (note >= NOTE_INDIVIDUAL_START && note <= NOTE_INDIVIDUAL_START + 7) {
         // Individual fixture control
         uint8_t fixture = note - NOTE_INDIVIDUAL_START;
         if (velocity == 127) {
-            controller_.setIndividualColor(fixture);
+            controller_.setIndividualNoteHit(fixture);
         }
         else {
             RGB color = velocityToColor(velocity);
-            controller_.setIndividualColor(fixture, color);
+            controller_.setIndividualNoteHit(fixture, color);
         }
 
     }
@@ -57,49 +94,5 @@ void MIDIHandler::handleControlChange(uint8_t channel, uint8_t control, uint8_t 
                 controller_.fixtures_[i].setRelease(static_cast<int>(normalized * 60));
             }
             break;
-    }
-}
-
-RGB MIDIHandler::velocityToColor(uint8_t velocity) const {
-    // Convert note to color using HSV->RGB conversion
-    uint8_t hue = ((velocity) * 2) % 256;
-
-    // Simple HSV to RGB conversion for full saturation and value
-    uint8_t region = hue / 43;
-    uint8_t remainder = (hue - (region * 43)) * 6;
-
-    uint8_t p = 0;
-    uint8_t q = 0;
-    uint8_t t = 0;
-
-    switch (region) {
-        case 0: return {255, remainder, p};
-        case 1: return {255 - remainder, 255, p};
-        case 2: return {p, 255, remainder};
-        case 3: return {p, 255 - remainder, 255};
-        case 4: return {remainder, p, 255};
-        case 5: default: return {255, p, 255 - remainder};
-    }
-}
-
-RGB MIDIHandler::noteToColor(uint8_t note) const {
-    // Convert note to color using HSV->RGB conversion
-    uint8_t hue = ((note - NOTE_COLOR_START) * 32) % 256;
-
-    // Simple HSV to RGB conversion for full saturation and value
-    uint8_t region = hue / 43;
-    uint8_t remainder = (hue - (region * 43)) * 6;
-
-    uint8_t p = 0;
-    uint8_t q = 0;
-    uint8_t t = 0;
-
-    switch (region) {
-        case 0: return {255, remainder, p};
-        case 1: return {255 - remainder, 255, p};
-        case 2: return {p, 255, remainder};
-        case 3: return {p, 255 - remainder, 255};
-        case 4: return {remainder, p, 255};
-        case 5: default: return {255, p, 255 - remainder};
     }
 }

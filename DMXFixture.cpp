@@ -14,7 +14,7 @@ DMXFixture::DMXFixture(uint8_t startAddress, uint8_t channelsPerFixture)
     , attackDelta_({0, 0, 0})
     , releaseDelta_({0, 0, 0}) {}
 
-void DMXFixture::setColor() {
+void DMXFixture::noteHit() {
     // Calculate attack deltas
     attackDelta_.r = (targetColor_.r - currentColor_.r) / attackFrames_;
     attackDelta_.g = (targetColor_.g - currentColor_.g) / attackFrames_;
@@ -29,8 +29,8 @@ void DMXFixture::setColor() {
     fadeOutFramesLeft_ = releaseFrames_;
 }
 
-void DMXFixture::setColor(const RGB& color) {
-    targetColor_ = color;
+void DMXFixture::noteHit(const RGB& color) {
+    this->setColor(color);
 
     // Calculate attack deltas
     attackDelta_.r = (targetColor_.r - currentColor_.r) / attackFrames_;
@@ -48,6 +48,10 @@ void DMXFixture::setColor(const RGB& color) {
 
 void DMXFixture::setBrightness(float brightness) {
     brightness_ = std::clamp(brightness, 0.0f, 1.0f);
+}
+
+void DMXFixture::setColor(const RGB& color) {
+    targetColor_ = color;
 }
 
 void DMXFixture::setAttack(int frames) {

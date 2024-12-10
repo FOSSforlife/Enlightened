@@ -13,6 +13,4 @@ private:
     static constexpr uint8_t NOTE_COLOR_START = 53;
     static constexpr uint8_t NOTE_SYMMETRICAL_START = 60;
     static constexpr uint8_t NOTE_INDIVIDUAL_START = 65;
-
-    RGB noteToColor(uint8_t note) const;
 };
