@@ -7,8 +7,8 @@ DMXFixture::DMXFixture(uint8_t startAddress, uint8_t channelsPerFixture)
     , targetColor_({0, 0, 0})
     , currentColor_({0, 0, 0})
     , brightness_(1.0f)
-    , attackFrames_(15)
-    , releaseFrames_(15)
+    , attackFrames_(2)
+    , releaseFrames_(8)
     , fadeInFramesLeft_(0)
     , fadeOutFramesLeft_(0)
     , attackDelta_({0, 0, 0})
@@ -16,14 +16,14 @@ DMXFixture::DMXFixture(uint8_t startAddress, uint8_t channelsPerFixture)
 
 void DMXFixture::noteHit() {
     // Calculate attack deltas
-    attackDelta_.r = (targetColor_.r - currentColor_.r) / attackFrames_;
-    attackDelta_.g = (targetColor_.g - currentColor_.g) / attackFrames_;
-    attackDelta_.b = (targetColor_.b - currentColor_.b) / attackFrames_;
+    attackDelta_.r = targetColor_.r / attackFrames_;
+    attackDelta_.g = targetColor_.g / attackFrames_;
+    attackDelta_.b = targetColor_.b / attackFrames_;
 
     // Calculate release deltas
-    releaseDelta_.r = currentColor_.r / releaseFrames_;
-    releaseDelta_.g = currentColor_.g / releaseFrames_;
-    releaseDelta_.b = currentColor_.b / releaseFrames_;
+    releaseDelta_.r = targetColor_.r / releaseFrames_;
+    releaseDelta_.g = targetColor_.g / releaseFrames_;
+    releaseDelta_.b = targetColor_.b / releaseFrames_;
 
     fadeInFramesLeft_ = attackFrames_;
     fadeOutFramesLeft_ = releaseFrames_;
@@ -33,14 +33,14 @@ void DMXFixture::noteHit(const RGB& color) {
     this->setColor(color);
 
     // Calculate attack deltas
-    attackDelta_.r = (targetColor_.r - currentColor_.r) / attackFrames_;
-    attackDelta_.g = (targetColor_.g - currentColor_.g) / attackFrames_;
-    attackDelta_.b = (targetColor_.b - currentColor_.b) / attackFrames_;
+    attackDelta_.r = targetColor_.r / attackFrames_;
+    attackDelta_.g = targetColor_.g / attackFrames_;
+    attackDelta_.b = targetColor_.b / attackFrames_;
 
     // Calculate release deltas
-    releaseDelta_.r = currentColor_.r / releaseFrames_;
-    releaseDelta_.g = currentColor_.g / releaseFrames_;
-    releaseDelta_.b = currentColor_.b / releaseFrames_;
+    releaseDelta_.r = targetColor_.r / releaseFrames_;
+    releaseDelta_.g = targetColor_.g / releaseFrames_;
+    releaseDelta_.b = targetColor_.b / releaseFrames_;
 
     fadeInFramesLeft_ = attackFrames_;
     fadeOutFramesLeft_ = releaseFrames_;

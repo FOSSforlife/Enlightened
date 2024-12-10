@@ -31,26 +31,26 @@ MIDIHandler::MIDIHandler(DMXController& controller)
 void MIDIHandler::handleNoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
     if (note >= NOTE_COLOR_START && note <= NOTE_SYMMETRICAL_START) {
         switch(note) {
-            case NOTE_COLOR_START + 4: // E2
+            case NOTE_COLOR_START: // E2
                 controller_.setColorScheme(hueToColor2(velocity * 2), Static);
                 break;
-            case NOTE_COLOR_START + 5: // F2
+            case NOTE_COLOR_START + 1: // F2
                 controller_.setColorScheme(hueToColor2(velocity * 2), Complementary);
                 break;
-            case NOTE_COLOR_START + 7: // G2
+            case NOTE_COLOR_START + 3: // G2
                 controller_.setColorScheme(hueToColor2(velocity * 2), Analogous);
                 break;
-            case NOTE_COLOR_START + 9: // A2
+            case NOTE_COLOR_START + 5: // A2
                 controller_.setColorScheme(hueToColor2(velocity * 2), Triadic);
                 break;
-            case NOTE_COLOR_START + 11: // B2
+            case NOTE_COLOR_START + 7: // B2
                 controller_.setColorScheme(hueToColor2(velocity * 2), SplitComplementary);
                 break;
         }
     }
     else if (note >= NOTE_SYMMETRICAL_START && note <= NOTE_SYMMETRICAL_START + 4) {
         // Symmetrical control notes
-        uint8_t leftFixture = (note - NOTE_SYMMETRICAL_START) / 2;
+        size_t leftFixture = (note - NOTE_SYMMETRICAL_START) / 2;
         if (velocity == 127) {
             controller_.setSymmetricalNoteHit(leftFixture);
         }
@@ -61,7 +61,7 @@ void MIDIHandler::handleNoteOn(uint8_t channel, uint8_t note, uint8_t velocity) 
     }
     else if (note >= NOTE_INDIVIDUAL_START && note <= NOTE_INDIVIDUAL_START + 7) {
         // Individual fixture control
-        uint8_t fixture = note - NOTE_INDIVIDUAL_START;
+        size_t fixture = note - NOTE_INDIVIDUAL_START;
         if (velocity == 127) {
             controller_.setIndividualNoteHit(fixture);
         }
@@ -78,21 +78,21 @@ void MIDIHandler::handleControlChange(uint8_t channel, uint8_t control, uint8_t 
     float normalized = value / 127.0f;
 
     // Example CC mappings:
-    switch (control) {
-        case 1: // Modulation wheel - global brightness
-            for (size_t i = 0; i < 6; ++i) {
-                controller_.fixtures_[i].setBrightness(normalized);
-            }
-            break;
-        case 73: // Attack time
-            for (size_t i = 0; i < 6; ++i) {
-                controller_.fixtures_[i].setAttack(static_cast<int>(normalized * 60));
-            }
-            break;
-        case 72: // Release time
-            for (size_t i = 0; i < 6; ++i) {
-                controller_.fixtures_[i].setRelease(static_cast<int>(normalized * 60));
-            }
-            break;
-    }
+    // switch (control) {
+    //     case 1: // Modulation wheel - global brightness
+    //         for (size_t i = 0; i < 6; ++i) {
+    //             controller_.fixtures_[i].setBrightness(normalized);
+    //         }
+    //         break;
+    //     case 73: // Attack time
+    //         for (size_t i = 0; i < 6; ++i) {
+    //             controller_.fixtures_[i].setAttack(static_cast<int>(normalized * 60));
+    //         }
+    //         break;
+    //     case 72: // Release time
+    //         for (size_t i = 0; i < 6; ++i) {
+    //             controller_.fixtures_[i].setRelease(static_cast<int>(normalized * 60));
+    //         }
+    //         break;
+    // }
 }

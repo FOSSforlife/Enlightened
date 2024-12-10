@@ -6,6 +6,8 @@
     "*.pde": "java",
     "cstddef": "cpp",
     "vector": "cpp",
-    "algorithm": "cpp"
+    "algorithm": "cpp",
+    "ostream": "cpp",
+    "print": "cpp"
   }
 }

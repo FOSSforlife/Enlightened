@@ -17,10 +17,10 @@ public:
 
     std::vector<DMXFixture> fixtures_;
     void addFixture(uint8_t startAddress, uint8_t channelsPerFixture = 7);
-    void setSymmetricalNoteHit(uint8_t leftIndex);
-    void setSymmetricalNoteHit(uint8_t leftIndex, const RGB& color);
-    void setIndividualNoteHit(uint8_t index, const RGB& color);
-    void setIndividualNoteHit(uint8_t index);
+    void setSymmetricalNoteHit(size_t leftIndex);
+    void setSymmetricalNoteHit(size_t leftIndex, const RGB& color);
+    void setIndividualNoteHit(size_t index, const RGB& color);
+    void setIndividualNoteHit(size_t index);
     void setColorScheme(const RGB& color, HueSchemaType schemaType);
     void update(); // Called every frame
 

@@ -23,6 +23,9 @@ public:
     bool isAnimating() const;
     uint8_t startAddress_;
     uint8_t channelsPerFixture_;
+    int fadeInFramesLeft_;
+    int fadeOutFramesLeft_;
+    RGB releaseDelta_;
 
 private:
     RGB targetColor_;
@@ -30,8 +33,5 @@ private:
     float brightness_;
     int attackFrames_;
     int releaseFrames_;
-    int fadeInFramesLeft_;
-    int fadeOutFramesLeft_;
     RGB attackDelta_;
-    RGB releaseDelta_;
 };

@@ -102,28 +102,34 @@ void DMXController::addFixture(uint8_t startAddress, uint8_t channelsPerFixture)
     fixtures_.emplace_back(startAddress, channelsPerFixture);
 }
 
-void DMXController::setSymmetricalNoteHit(uint8_t leftIndex) {
-    if (leftIndex >= fixtures_.size() / 2) return;
+void DMXController::setSymmetricalNoteHit(size_t leftIndex) {
+    if (leftIndex >= fixtures_.size() / 2) {
+        Serial.println("Invalid fixture index");
+        return;
+    };
 
     uint8_t rightIndex = fixtures_.size() - 1 - leftIndex;
     fixtures_[leftIndex].noteHit();
     fixtures_[rightIndex].noteHit();
 }
 
-void DMXController::setSymmetricalNoteHit(uint8_t leftIndex, const RGB& color) {
-    if (leftIndex >= fixtures_.size() / 2) return;
+void DMXController::setSymmetricalNoteHit(size_t leftIndex, const RGB& color) {
+    if (leftIndex >= fixtures_.size() / 2) {
+        Serial.println("Invalid fixture index");
+        return;
+    };
 
     uint8_t rightIndex = fixtures_.size() - 1 - leftIndex;
     fixtures_[leftIndex].noteHit(color);
     fixtures_[rightIndex].noteHit(color);
 }
 
-void DMXController::setIndividualNoteHit(uint8_t index) {
+void DMXController::setIndividualNoteHit(size_t index) {
     if (index >= fixtures_.size()) return;
     fixtures_[index].noteHit();
 }
 
-void DMXController::setIndividualNoteHit(uint8_t index, const RGB& color) {
+void DMXController::setIndividualNoteHit(size_t index, const RGB& color) {
     if (index >= fixtures_.size()) return;
     fixtures_[index].noteHit(color);
 }
@@ -157,7 +163,7 @@ void DMXController::setColorScheme(const RGB& color, HueSchemaType schemaType) {
 
     int halfwayPoint = fixtures_.size() / 2;
 
-    for (int i = 0; i < halfwayPoint; i++) {
+    for (size_t i = 0; i < halfwayPoint; i++) {
         int whichFixture = i % 3;
         if (whichFixture == 0) {
             fixtures_[i].setColor(fixtureA);
@@ -170,7 +176,7 @@ void DMXController::setColorScheme(const RGB& color, HueSchemaType schemaType) {
         }
     }
 
-    for (int i = halfwayPoint; i < fixtures_.size(); i++) {
+    for (size_t i = halfwayPoint; i < fixtures_.size(); i++) {
         int whichFixture = i % 3;
         if (whichFixture == 0) {
             fixtures_[i].setColor(fixtureC);
@@ -194,8 +200,12 @@ void DMXController::update() {
 void DMXController::updateDMXValues() {
     for (size_t i = 0; i < fixtures_.size(); ++i) {
         RGB color = fixtures_[i].getCurrentColor();
+        // int fadeInFramesLeft = fixtures_[i].fadeInFramesLeft_;
+        // int fadeOutFramesLeft = fixtures_[i].fadeOutFramesLeft_;
+        // RGB releaseDelta = fixtures_[i].releaseDelta_;
         uint8_t startAddr = 1 + (i * fixtures_[i].channelsPerFixture_);
         uint8_t data[3] = {color.r, color.g, color.b};
+        // uint8_t data[6] = {color.r, color.g, color.b, fadeInFramesLeft, fadeOutFramesLeft, releaseDelta.r};
         dmxTx_.set(startAddr, data, 3);
 
         // print to serial monitor
@@ -208,6 +218,7 @@ void DMXController::updateDMXValues() {
             Serial.print(rgbValue);
             Serial.print(" ");
         }
+        Serial.print(" ");
     }
     Serial.println();
 }
